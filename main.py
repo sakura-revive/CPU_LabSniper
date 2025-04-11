@@ -1,4 +1,4 @@
-from cpu_equipment_reserve import my_reserve
+from labsniper import core
 import os
 import sys
 import yaml
@@ -42,11 +42,11 @@ def main():
             if reserve_info is None:
                 reserve_info = {}
 
-    dtstart = my_reserve.get_timestamp(config["start"])
-    dtend = my_reserve.get_timestamp(config["end"])
+    dtstart = core.get_timestamp(config["start"])
+    dtend = core.get_timestamp(config["end"])
 
-    hackstart = my_reserve.get_timestamp(config.get("hackstart", None))
-    hackend = my_reserve.get_timestamp(config.get("hackend", None))
+    hackstart = core.get_timestamp(config.get("hackstart", None))
+    hackend = core.get_timestamp(config.get("hackend", None))
     if (hackstart is None) ^ (hackend is None):
         raise ValueError("Please specify both hackstart and hackend or neither.")
 
@@ -57,18 +57,18 @@ def main():
     if schedule:
         days_in_advance = int(reserve_info.get("days_in_advance", 0))
         delay_seconds = float(config.get("delay_seconds", 0))
-        intervene = my_reserve.schedule(
+        intervene = core.schedule(
             dtend=dtend,
             days_in_advance=days_in_advance,
             delay_seconds=delay_seconds,
-            ticket_alive_seconds=my_reserve.TICKET_ALIVE_SECONDS,
+            ticket_alive_seconds=core.TICKET_ALIVE_SECONDS,
         )
     else:
         intervene = None
 
     print("Start.\n")
 
-    res = my_reserve.single_reserve(
+    res = core.single_reserve(
         credential=credential,
         dtstart=dtstart,
         dtend=dtend,

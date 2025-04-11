@@ -1,4 +1,4 @@
-# CPU Equipment Reserve
+# CPU Lab Sniper
 
 该项目可以帮助用户在中国药科大学的大型仪器共享平台上预约仪器。
 
