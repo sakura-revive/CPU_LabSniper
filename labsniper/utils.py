@@ -43,7 +43,7 @@ def normalize_string(
     if isinstance(value, str):
         return value
     else:
-        msg += f"参数无效，{param_name}必须是字符串，而不是{type(value)}."
+        msg += f"参数无效，{param_name}必须是字符串或数字，而不是{type(value)}."
         raise TypeError(msg)
 
 
