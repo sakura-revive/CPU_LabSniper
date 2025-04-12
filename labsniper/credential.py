@@ -36,16 +36,8 @@ class LocalCredential(Credential):
         """Initialize local credential with username and password."""
         super().__init__(credential_type=CredentialType.LOCAL)
 
-        self.username = normalize_string(
-            username,
-            param_name="用户名",
-            allow_empty=False,
-        )
-        self.password = normalize_string(
-            password,
-            param_name="密码",
-            allow_empty=False,
-        )
+        self.username = normalize_string(username, param_name="用户名")
+        self.password = normalize_string(password, param_name="密码")
 
     def login(self) -> dict:
         session = requests.Session()
@@ -88,16 +80,8 @@ class SSOCredential(Credential):
         """Initialize SSO credential with username and password."""
         super().__init__(credential_type=CredentialType.SSO)
 
-        self.username = normalize_string(
-            username,
-            param_name="用户名",
-            allow_empty=False,
-        )
-        self.password = normalize_string(
-            password,
-            param_name="密码",
-            allow_empty=False,
-        )
+        self.username = normalize_string(username, param_name="用户名")
+        self.password = normalize_string(password, param_name="密码")
 
     def encode(self, string: str) -> str:
         from base64 import b64encode
