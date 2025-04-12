@@ -1,20 +1,20 @@
 from .credential import Credential
+from .utils import normalize_string
 
 COOKIE_KEYS = ["session_lims2_cf_cpu"]
 
 
 class User:
-    def __init__(self, credential: Credential, tag: str = "默认用户") -> None:
+    def __init__(self, credential: Credential) -> None:
         """
-        Initializes the User object with a tag.
+        Initializes the User object with a credential.
 
         Args:
-            tag (str): The tag for the user. Default is "默认用户".
+            credential (Credential): The credential object used for authentication.
         """
         if not isinstance(credential, Credential):
             msg = f"Invalid parameter. Detail:\n给定的凭证的类型不正确，不能是{type(credential)}."
             raise TypeError(msg)
-        self.tag = tag
         self.credentials = credential
         self.cookies: dict[str:str] = {}
 
