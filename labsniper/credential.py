@@ -62,17 +62,19 @@ class LocalCredential(Credential):
             "submit": "登录",
         }
         # Login
-        response = session.post(
-            url=login_url,
-            headers=headers,
-            data=data,
-        )
+        try:
+            response = session.post(url=login_url, headers=headers, data=data)
+        except Exception as e:
+            msg = f"Failed to login ({type(e).__name__}). Detail:\n"
+            msg += "网络异常，无法连接至服务器，本地登录失败。"
+            raise RuntimeError(msg) from e
+
         if response.status_code == 401:  # Unauthorized
             msg = "Failed to login (401 Unauthorized). Detail:\n"
             pattern = r'<div class="message message_error"><p>(.*)</p></div>'
-            re_obj = re.search(pattern, response.text)
-            if re_obj:
-                msg += f"{re_obj.group(1)}"
+            re_msg = re.search(pattern, response.text)
+            if re_msg:
+                msg += f"{re_msg.group(1)}"
             else:
                 msg += "本地登录失败，请检查用户名和密码是否正确。"
             raise RuntimeError(msg)
@@ -115,8 +117,6 @@ class SSOCredential(Credential):
             "Upgrade-Insecure-Requests": "1",
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36 Edg/135.0.0.0",
         }
-        # To the login page
-        session.get(login_url, params=params, headers=headers)
         data = {
             "lt": "${loginTicket}",
             "useVCode": "",
@@ -131,14 +131,22 @@ class SSOCredential(Credential):
             "password": self.encode(self.password),
             "rememberpwd": "on",
         }
-        # Login
-        response = session.post(login_url, params=params, data=data)
+        try:
+            # To the login page
+            session.get(login_url, params=params, headers=headers)
+            # Login
+            response = session.post(login_url, params=params, data=data)
+        except Exception as e:
+            msg = f"Failed to login via SSO ({type(e).__name__}). Detail:\n"
+            msg += "网络异常，无法连接至服务器，统一身份认证登录失败。"
+            raise RuntimeError(msg) from e
+
         if response.status_code == 401:  # Unauthorized
             msg = "Failed to login via SSO (401 Unauthorized). Detail:\n"
             pattern = r'<div class="tips"><span>(.*)</span></div>'
-            re_obj = re.search(pattern, response.text)
-            if re_obj:
-                msg += f"{re_obj.group(1)}"
+            re_msg = re.search(pattern, response.text)
+            if re_msg:
+                msg += f"{re_msg.group(1)}"
             else:
                 msg += "统一身份认证登录失败，请检查用户名和密码是否正确。"
             raise RuntimeError(msg)
