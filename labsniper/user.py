@@ -1,5 +1,4 @@
 from .credential import Credential
-from .utils import normalize_string
 
 COOKIE_KEYS = ["session_lims2_cf_cpu"]
 
@@ -21,15 +20,16 @@ class User:
     def is_cookie_valid(self) -> bool:
         return all(key in self.cookies for key in COOKIE_KEYS)
 
+    def login(self) -> None:
+        cookies = self.credentials.login()
+        self.cookies = {
+            key: cookies[key] for key in cookies.keys() if key in COOKIE_KEYS
+        }
+        if not self.is_cookie_valid():
+            msg = "Invalid cookie. Detail:\nCookie不完整，可能是登录失败或凭证错误。"
+            raise RuntimeError(msg)
+
     def get_cookies(self) -> dict:
         if not self.is_cookie_valid():
-            cookies = self.credentials.login()
-            self.cookies = {
-                key: cookies[key] for key in cookies.keys() if key in COOKIE_KEYS
-            }
-            if not self.is_cookie_valid():
-                msg = (
-                    "Invalid cookie. Detail:\nCookie不完整，可能是登录失败或凭证错误。"
-                )
-                raise RuntimeError(msg)
+            self.login()
         return self.cookies
