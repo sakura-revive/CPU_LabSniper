@@ -3,16 +3,50 @@ import os
 import re
 
 import requests
-import urllib.parse
 import socketio
+import urllib.parse
 
-from .user import User
-from .utils import get_timestamp
-from .utils import normalize_string
-from .form import Form
 from .equipment import Equipment
+from .form import Form
+from .user import User
+from .utils import get_timestamp, normalize_string
 
 ENABLE_HACK = os.getenv("LABSNIPER_ENABLE_HACK", "") == "1"
+
+
+class Reservation:
+    def __init__(
+        self,
+        start: str,
+        end: str,
+        form: Form | None = None,
+        component_id: str | None = None,
+    ) -> None:
+        self.dtstart = get_timestamp(start)
+        self.dtend = get_timestamp(end)
+
+        if form is None:
+            form = Form()
+        if not isinstance(form, Form):
+            msg = "Invalid parameter. Detail:\n"
+            msg += f"参数无效，给定的表单数据的类型不正确，不能为{type(form)}."
+            raise TypeError(msg)
+        self.form = form
+
+        self.component_id = normalize_string(
+            component_id,
+            param_name="预约组件ID",
+            allow_empty=True,
+        )
+
+    def get_request_creation_data(self) -> dict:
+        return {**self.form.data, **{"dtstart": self.dtstart, "dtend": self.dtend}}
+
+    def get_request_submission_data(self) -> dict:
+        data = {}
+        if self.component_id != "":
+            data["component_id"] = self.component_id
+        return data
 
 
 class Hack:
@@ -51,41 +85,6 @@ class Hack:
         data = {}
         if self.current_user_id != "":
             data["currentUserId"] = self.current_user_id
-        return data
-
-
-class Reservation:
-    def __init__(
-        self,
-        start: str,
-        end: str,
-        form: Form | None = None,
-        component_id: str | None = None,
-    ) -> None:
-        self.dtstart = get_timestamp(start)
-        self.dtend = get_timestamp(end)
-
-        if form is None:
-            form = Form()
-        if not isinstance(form, Form):
-            msg = "Invalid parameter. Detail:\n"
-            msg += f"参数无效，给定的表单数据的类型不正确，不能为{type(form)}."
-            raise TypeError(msg)
-        self.form = form
-
-        self.component_id = normalize_string(
-            component_id,
-            param_name="预约组件ID",
-            allow_empty=True,
-        )
-
-    def get_request_creation_data(self) -> dict:
-        return {**self.form.data, **{"dtstart": self.dtstart, "dtend": self.dtend}}
-
-    def get_request_submission_data(self) -> dict:
-        data = {}
-        if self.component_id != "":
-            data["component_id"] = self.component_id
         return data
 
 
@@ -162,7 +161,6 @@ class ReservationService:
 
             # Handle escape characters
             form = json.loads(form_json.replace("\\\\", "\\").replace('\\"', '"'))
-            form["ticket"] = ticket
 
             self.request_data: dict = form
             self.ticket: str = ticket
@@ -195,19 +193,21 @@ class ReservationService:
                     .replace("\\n", "\n")
                     .replace("\\<br/\\>", "\n")
                 )
-                msg += f"预约请求创建失败，以下是来自服务器的错误信息：\n{alert}"
+                msg += f"预约请求创建失败，以下是错误信息：\n{alert}"
                 raise RuntimeError(msg)
             elif "dialog" in response_json and "data" in response_json["dialog"]:
                 # An html dialog is shown
                 response_html: str = response_json["dialog"]["data"]
+
                 pattern1 = r'<div id="form_error_box"[\s\S]*?>([\s\S]*?)</div>'
                 re_error_div = re.search(pattern1, response_html)
                 error_div = re_error_div.group(1)
+
                 pattern2 = r"<li>([\s\S]*?)</li>"
                 error_li_list = re.findall(pattern2, error_div)
                 error_detail = "\n".join(error_li_list).replace("<br/>", "\n")
 
-                msg += f"预约请求创建失败，以下是来自服务器的错误信息：\n{error_detail}"
+                msg += f"预约请求创建失败，以下是错误信息：\n{error_detail}"
                 raise RuntimeError(msg)
             else:
                 # Other json response
@@ -225,10 +225,7 @@ class ReservationService:
             **self.request_data,
             **self.reservation.get_request_creation_data(),
             **self.reservation.get_request_submission_data(),
-            **{
-                "ticket": self.ticket,
-                "ticketId": self.ticket_id,
-            },
+            "ticketId": self.ticket_id,  # make sure the ticketId is correct
         }
         if self.hack is not None:
             form_submit = {
@@ -291,7 +288,7 @@ class ReservationService:
         sio.wait()  # Until the result is obtained
         if not res["success"]:
             msg = f"Failed to submit request. Detail:\n"
-            msg += f"预约请求提交失败，以下是来自服务器的错误信息：\n{res['message']}"
+            msg += f"预约请求提交失败，以下是错误信息：\n{res['message']}"
             raise RuntimeError(msg)
 
         component_id = res["component_id"]
