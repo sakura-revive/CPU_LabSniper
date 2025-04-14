@@ -43,25 +43,26 @@ class Equipment:
 
         pattern = r"calendar_id=([0-9]*)&"
         re_calendar_id = re.search(pattern, response.text)
-        if re_calendar_id is None:  # Error handling
-            msg = f"Failed to get equipment info for equipment {self.equipment_id} "
-            if response.status_code == 401:  # Unauthorized
-                msg += "(401 Unauthorized). Detail:\n"
-                msg += "仪器信息获取失败，请检查登录状态或凭证是否正确。"
-                raise RuntimeError(msg)
-            elif response.status_code == 404:  # Not found
-                msg += f"(404 Not Found). Detail:\n"
-                msg += f"仪器信息获取失败，未找到编号为{self.equipment_id}的仪器。"
-                raise RuntimeError(msg)
-            elif response.status_code == 200:  # OK
-                msg += "(200 OK). Detail:\n"
-                msg += "仪器信息获取失败，可能是因为该仪器并未对当前用户开放预约。"
-                raise RuntimeError(msg)
-            else:  # Other status codes
-                msg += f"({response.status_code}). Detail:\n"
-                msg += f"仪器信息获取失败，出现意外的错误码{response.status_code}."
-                raise RuntimeError(msg)
+        if re_calendar_id is not None:
+            calendar_id = re_calendar_id.group(1)
+            self.calendar_id = calendar_id
+            return calendar_id
 
-        calendar_id = re_calendar_id.group(1)
-        self.calendar_id = calendar_id
-        return calendar_id
+        # Error handling
+        msg = f"Failed to get equipment info for equipment {self.equipment_id} "
+        if response.status_code == 401:  # Unauthorized
+            msg += "(401 Unauthorized). Detail:\n"
+            msg += "仪器信息获取失败，请检查登录状态或凭证是否正确。"
+            raise RuntimeError(msg)
+        elif response.status_code == 404:  # Not found
+            msg += f"(404 Not Found). Detail:\n"
+            msg += f"仪器信息获取失败，未找到编号为{self.equipment_id}的仪器。"
+            raise RuntimeError(msg)
+        elif response.status_code == 200:  # OK
+            msg += "(200 OK). Detail:\n"
+            msg += "仪器信息获取失败，可能是因为该仪器并未对当前用户开放预约。"
+            raise RuntimeError(msg)
+        else:  # Other status codes
+            msg += f"({response.status_code}). Detail:\n"
+            msg += f"仪器信息获取失败，出现意外的错误码{response.status_code}."
+            raise RuntimeError(msg)
