@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import time
 
 import requests
 import socketio
@@ -88,6 +89,43 @@ class Hack:
         return data
 
 
+class Intervene:
+    def __init__(
+        self,
+        open_time: str,
+        creation_advance_seconds: float,
+        submission_advance_seconds: float,
+        time_offset: float = 0.0,  # server_time - local_time
+    ) -> None:
+        # TODO 数据校验
+        self.open_time_stamp = get_timestamp(open_time)
+        self.creation_advance_seconds = creation_advance_seconds
+        self.submission_advance_seconds = submission_advance_seconds
+        self.time_offset = time_offset
+
+    def get_server_time(self) -> float:
+        return time.time() + self.time_offset
+
+    def wait_until(self, target_timestamp: float, poll_interval: float) -> None:
+        while True:
+            remaining = target_timestamp - self.get_server_time()
+            if remaining <= 0:
+                break
+            time.sleep(poll_interval)
+
+    def pause_before_request_creation(self) -> None:
+        self.wait_until(
+            self.open_time_stamp - self.creation_advance_seconds,
+            poll_interval=min(1, self.creation_advance_seconds / 10),
+        )
+
+    def pause_before_request_submission(self) -> None:
+        self.wait_until(
+            self.open_time_stamp - self.submission_advance_seconds,
+            poll_interval=min(0.01, self.submission_advance_seconds / 10),
+        )
+
+
 class ReservationService:
     @staticmethod
     def param_check(
@@ -109,16 +147,19 @@ class ReservationService:
         equipment: Equipment,
         reservation: Reservation,
         hack: Hack | None = None,
+        intervene: Intervene | None = None,
     ) -> None:
         self.param_check(user, User, "用户数据")
         self.param_check(equipment, Equipment, "仪器数据")
         self.param_check(reservation, Reservation, "预约数据")
         self.param_check(hack, Hack, "特殊数据", allow_none=True)
+        self.param_check(intervene, Intervene, "干预数据", allow_none=True)
 
         self.user = user
         self.equipment = equipment
         self.reservation = reservation
         self.hack = hack
+        self.intervene = intervene
 
     def create_request(self) -> None:
         equipment_id = self.equipment.equipment_id
@@ -288,6 +329,8 @@ class ReservationService:
         @sio.event
         def connect():
             # Connected
+            if self.intervene is not None:
+                self.intervene.pause_before_request_submission()
             sio.emit("yiqikong-reserv", message)
 
         @sio.event
@@ -311,3 +354,9 @@ class ReservationService:
 
         component_id = res["component_id"]
         return component_id
+
+    def go(self) -> str:
+        if self.intervene is not None:
+            self.intervene.pause_before_request_creation()
+        self.create_request()
+        return self.submit_request()
