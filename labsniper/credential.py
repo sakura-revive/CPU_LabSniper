@@ -145,7 +145,7 @@ class ManualCredential(Credential):
         super().__init__(credential_type=CredentialType.MANUAL)
 
         if not isinstance(cookies, dict):
-            msg = f"Invalid parameter. Detail:\nCookies必须是字典类型，而不是{type(cookies)}."
+            msg = f"Invalid parameter. Detail:\nCookies必须为字典类型，而不是{type(cookies)}."
             raise TypeError(msg)
         self.cookies = cookies
 
