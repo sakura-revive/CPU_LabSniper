@@ -1,4 +1,5 @@
 import json
+import os
 import re
 
 import requests
@@ -11,7 +12,7 @@ from .utils import normalize_string
 from .form import Form
 from .equipment import Equipment
 
-ENABLE_HACK = True
+ENABLE_HACK = os.getenv("LABSNIPER_ENABLE_HACK", "") == "1"
 
 
 class Hack:
@@ -35,6 +36,8 @@ class Hack:
         )
 
     def get_request_creation_data(self) -> dict:
+        if not ENABLE_HACK:
+            return {}
         data = {}
         if self.dtstart is not None:
             data["dtstart"] = self.dtstart
@@ -43,6 +46,8 @@ class Hack:
         return data
 
     def get_request_submission_data(self) -> dict:
+        if not ENABLE_HACK:
+            return {}
         data = {}
         if self.current_user_id != "":
             data["currentUserId"] = self.current_user_id
@@ -64,7 +69,7 @@ class Reservation:
             form = Form()
         if not isinstance(form, Form):
             msg = "Invalid parameter. Detail:\n"
-            msg += "参数无效，表单数据类型不正确。"
+            msg += f"参数无效，给定的表单数据的类型不正确，不能为{type(form)}."
             raise TypeError(msg)
         self.form = form
 
