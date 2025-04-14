@@ -51,7 +51,7 @@ class Equipment:
                 raise RuntimeError(msg)
             elif response.status_code == 404:  # Not found
                 msg += f"(404 Not Found). Detail:\n"
-                msg += f"未找到编号为{self.equipment_id}的仪器。"
+                msg += f"仪器信息获取失败，未找到编号为{self.equipment_id}的仪器。"
                 raise RuntimeError(msg)
             elif response.status_code == 200:  # OK
                 msg += "(200 OK). Detail:\n"
