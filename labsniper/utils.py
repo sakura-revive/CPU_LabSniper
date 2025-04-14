@@ -1,3 +1,6 @@
+from datetime import datetime
+
+
 def normalize_string(
     value,
     param_name: str = "参数",
@@ -43,7 +46,7 @@ def normalize_string(
     if isinstance(value, str):
         return value
     else:
-        msg += f"参数无效，{param_name}必须是字符串或数字，而不是{type(value)}."
+        msg += f"参数无效，{param_name}必须为字符串或数字类型，而不是{type(value)}."
         raise TypeError(msg)
 
 
@@ -61,16 +64,21 @@ def get_timestamp(input_time: str) -> int:
         >>> get_timestamp("2024-04-01 09:30:00")
         1711935000
     """
-    normalize_string(input_time, param_name="时间", allow_empty=False)
-
-    from datetime import datetime
+    if input_time is None or input_time == "":
+        msg = "Invalid parameter. Detail:\n参数无效，时间不能为空。"
+        raise ValueError(msg)
 
     time_format = "%Y-%m-%d %H:%M:%S"
+
     try:
         time_obj = datetime.strptime(input_time, time_format)  # Parse time
+    except TypeError as e:
+        msg = f"Invalid parameter. Detail:\n参数无效，时间必须为字符串类型，而不是{type(input_time)}."
+        raise TypeError(msg) from e
     except ValueError as e:
-        msg = f'Invalid time format. Detail:\n时间格式不正确，请使用 "YYYY-mm-dd HH:MM:SS"，例如"2024-04-01 09:30:00".'
+        msg = f'Invalid time format. Detail:\n时间格式不正确，请使用"YYYY-mm-dd HH:MM:SS"，例如"2024-04-01 09:30:00".'
         raise ValueError(msg) from e
+
     try:
         timestamp = int(time_obj.timestamp())  # Convert datetime object to timestamp
     except OSError as e:
