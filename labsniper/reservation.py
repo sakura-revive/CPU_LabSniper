@@ -96,19 +96,17 @@ class ReservationService:
         equipment: Equipment,
         reservation: Reservation,
         hack: Hack | None = None,
-        intervene: Intervene | None = None,
     ) -> None:
         self.param_check(user, User, "用户数据")
         self.param_check(equipment, Equipment, "仪器数据")
         self.param_check(reservation, Reservation, "预约数据")
         self.param_check(hack, Hack, "特殊数据", allow_none=True)
-        self.param_check(intervene, Intervene, "干预数据", allow_none=True)
 
         self.user = user
         self.equipment = equipment
         self.reservation = reservation
         self.hack = hack
-        self.intervene = intervene
+        self.intervene = None
 
     @staticmethod
     def param_check(
@@ -123,6 +121,10 @@ class ReservationService:
             msg = "Invalid parameter. Detail:\n"
             msg += f"参数无效，给定的{param_name}的类型不正确，不能为{type(param)}."
             raise TypeError(msg)
+
+    def set_intervene(self, intervene: Intervene) -> None:
+        self.param_check(intervene, Intervene, "干预数据")
+        self.intervene = intervene
 
     def create_request(self) -> None:
         equipment_id = self.equipment.equipment_id
