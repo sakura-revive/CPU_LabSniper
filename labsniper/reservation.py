@@ -90,20 +90,6 @@ class Hack:
 
 
 class ReservationService:
-    @staticmethod
-    def param_check(
-        param,
-        param_type: type,
-        param_name: str,
-        allow_none: bool = False,
-    ) -> None:
-        if param is None and allow_none:
-            return
-        if not isinstance(param, param_type):
-            msg = "Invalid parameter. Detail:\n"
-            msg += f"参数无效，给定的{param_name}的类型不正确，不能为{type(param)}."
-            raise TypeError(msg)
-
     def __init__(
         self,
         user: User,
@@ -123,6 +109,20 @@ class ReservationService:
         self.reservation = reservation
         self.hack = hack
         self.intervene = intervene
+
+    @staticmethod
+    def param_check(
+        param,
+        param_type: type,
+        param_name: str,
+        allow_none: bool = False,
+    ) -> None:
+        if param is None and allow_none:
+            return
+        if not isinstance(param, param_type):
+            msg = "Invalid parameter. Detail:\n"
+            msg += f"参数无效，给定的{param_name}的类型不正确，不能为{type(param)}."
+            raise TypeError(msg)
 
     def create_request(self) -> None:
         equipment_id = self.equipment.equipment_id
