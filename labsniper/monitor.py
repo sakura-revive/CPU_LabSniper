@@ -39,6 +39,7 @@ class ThreadMonitor:
         self.original_stderr = sys.stderr
 
         self.main_thread_output = ""
+        self.thread_name_mapping: dict[str, str] = {}
         self.thread_data: dict[str, str] = {}
         self.lock = threading.Lock()
 
@@ -49,16 +50,22 @@ class ThreadMonitor:
             auto_refresh=False,
             redirect_stdout=False,
             redirect_stderr=False,
+            # vertical_overflow="visible",
         )
         self.live.start()
 
         sys.stdout = self
         sys.stderr = self
 
+    def register_thread_as(self, target_thread_name: str) -> None:
+        with self.lock:
+            thread = threading.current_thread()
+            self.thread_name_mapping[thread.name] = target_thread_name
+
     def __enter__(self) -> "ThreadMonitor":
         return self
 
-    def __exit__(self, exc_type, exc_value, exc_tb) -> None:
+    def __exit__(self, exc_type, exc_value, exc_traceback) -> None:
         self.stop()
 
     def __del__(self) -> None:
@@ -77,7 +84,7 @@ class ThreadMonitor:
         panels = []
         if self.main_thread_output != "":
             main_panel = Panel(
-                Text(self.main_thread_output, style="bold white"),
+                Text(self.main_thread_output, style="white"),
                 title=self.main_title,
                 border_style="green",
                 expand=True,
@@ -123,12 +130,13 @@ class ThreadMonitor:
     def write(self, message: str) -> None:
         with self.lock:
             thread = threading.current_thread()
-            if thread.name in self.thread_data:
-                self.thread_data[thread.name] += message
-            elif thread.name == "MainThread":
+            target_thread_name = self.thread_name_mapping.get(thread.name, thread.name)
+            if target_thread_name in self.thread_data:
+                self.thread_data[target_thread_name] += message
+            elif target_thread_name == "MainThread":
                 self.main_thread_output += message
             else:
-                self.thread_data[thread.name] = message
+                self.thread_data[target_thread_name] = message
             grid = self.generate_renderable()
             self.live.update(grid, refresh=True)
 
