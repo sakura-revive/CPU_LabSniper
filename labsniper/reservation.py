@@ -1,7 +1,10 @@
 import json
 import os
 import re
+import sys
+import threading
 import time
+from datetime import datetime
 
 import requests
 import socketio
@@ -9,6 +12,7 @@ import urllib.parse
 
 from .equipment import Equipment
 from .form import Form
+from .monitor import ThreadMonitor
 from .user import User
 from .utils import get_timestamp, normalize_string
 
@@ -95,15 +99,19 @@ class Hack:
 class Intervene:
     def __init__(
         self,
-        target_timestamp: int | float,
+        reserve_open_timestamp: int | float,
         creation_advance: int | float,
         submission_advance: int | float,
-        time_offset: int | float = 0,  # server_time - local_time
+        server_time_offset: int | float = 0,  # server_time - local_time
     ) -> None:
-        self.param_check(target_timestamp, "目标时间戳")
+        self.param_check(reserve_open_timestamp, "预约开放时间戳")
         self.param_check(creation_advance, "创建请求的提前秒数")
         self.param_check(submission_advance, "提交请求的提前秒数")
-        self.param_check(time_offset, "服务器时间校正偏移量", allow_negative=True)
+        self.param_check(
+            server_time_offset,
+            "服务器时间校正偏移量",
+            allow_negative=True,
+        )
 
         if creation_advance - submission_advance > TICKET_ALIVE_SECONDS:
             msg = "Invalid parameter. Detail:\n"
@@ -115,10 +123,10 @@ class Intervene:
             msg += f"给定的提交请求的提前时间过长，建议设置为{CONNECTION_ALIVE_SECONDS}秒以内。"
             raise ValueError(msg)
 
-        self.target_timestamp = target_timestamp
+        self.reserve_open_timestamp = reserve_open_timestamp
         self.creation_advance = creation_advance
         self.submission_advance = submission_advance
-        self.time_offset = time_offset
+        self.server_time_offset = server_time_offset
 
     @staticmethod
     def param_check(
@@ -135,24 +143,31 @@ class Intervene:
             raise ValueError(msg)
 
     def get_server_time(self) -> float:
-        return time.time() + self.time_offset
+        return time.time() + self.server_time_offset
 
     def wait_until(self, target_timestamp: float, poll_interval: float) -> None:
+        remaining = target_timestamp - self.get_server_time()
+        if remaining > 0:
+            dt = datetime.fromtimestamp(target_timestamp)
+            formatted_dt = dt.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+            msg = f"计划于此时刻后继续：{formatted_dt}（服务器时间）。"
+            print(msg, end="")
         while True:
             remaining = target_timestamp - self.get_server_time()
             if remaining <= 0:
+                print("即将继续...")
                 break
             time.sleep(poll_interval)
 
     def pause_before_request_creation(self) -> None:
         self.wait_until(
-            self.target_timestamp - self.creation_advance,
+            self.reserve_open_timestamp - self.creation_advance,
             poll_interval=min(1, self.creation_advance / 10),
         )
 
     def pause_before_request_submission(self) -> None:
         self.wait_until(
-            self.target_timestamp - self.submission_advance,
+            self.reserve_open_timestamp - self.submission_advance,
             poll_interval=min(0.001, self.submission_advance / 100),
         )
 
@@ -339,6 +354,8 @@ class ReservationService:
         query = urllib.parse.urlencode(params)
         url = f"{host}{path}?{query}"
 
+        self.current_thread = threading.current_thread()
+
         # Ready to connect
         sio = socketio.Client()
         res = {
@@ -362,6 +379,8 @@ class ReservationService:
         @sio.event
         def connect():
             # Connected
+            if isinstance(sys.stdout, ThreadMonitor):
+                sys.stdout.register_thread_as(self.current_thread.name)
             if self.intervene is not None:
                 self.intervene.pause_before_request_submission()
             sio.emit("yiqikong-reserv", message)
@@ -388,8 +407,14 @@ class ReservationService:
         component_id = res["component_id"]
         return component_id
 
-    def go(self) -> str:
+    def go(self) -> None:
+        print("准备创建预约请求")
         if self.intervene is not None:
             self.intervene.pause_before_request_creation()
+        print("预约请求创建成功，准备提交")
         self.create_request()
-        return self.submit_request()
+        component_id = self.submit_request()
+        if component_id == self.reservation.component_id:
+            print(f"成功修改了组件ID为{component_id}的预约。")
+        else:
+            print(f"成功创建了组件ID为{component_id}的预约。")
