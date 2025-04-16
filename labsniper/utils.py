@@ -1,3 +1,4 @@
+import sys
 from datetime import datetime
 
 
@@ -85,3 +86,10 @@ def get_timestamp(input_time: str) -> int:
         msg = f'Time conversion error. Detail:\n尝试转换"{datetime.strftime(time_obj, time_format)}"时发生错误，请检查时间是否在合理范围内。'
         raise RuntimeError(msg) from e
     return timestamp
+
+
+def simple_exception_output(exc_type, exc_value, exc_traceback):
+    print(f"{exc_type.__name__}: {exc_value}")
+
+
+sys.excepthook = simple_exception_output
