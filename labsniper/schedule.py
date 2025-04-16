@@ -1,9 +1,11 @@
+import sys
+import threading
 from collections.abc import Iterable
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from .equipment import Equipment
 from .reservation import Hack, Intervene, Reservation, ReservationService
 from .user import User
+from .utils import simple_exception_output
 
 
 class MultiReservationService:
@@ -29,35 +31,33 @@ class MultiReservationService:
 
         self.reservation_services = reservation_services
 
-    def worker(self, reservation_service: ReservationService) -> str:
+    def worker(self, reservation_service: ReservationService) -> None:
         try:
-            return reservation_service.go()
+            reservation_service.go()
         except Exception as e:
-            return str(e)
+            simple_exception_output(*sys.exc_info())
 
-    def execute(self) -> list[str]:
-        with ThreadPoolExecutor(max_workers=self.num_jobs) as executor:
-            future_map = {
-                executor.submit(self.worker, reservation_service): i
-                for i, reservation_service in enumerate(self.reservation_services)
-            }
-            results = [None] * self.num_jobs
-            for future in as_completed(future_map):
-                idx = future_map[future]
-                results[idx] = future.result()
-        return results
+    def execute(self) -> None:
+        threads: list[threading.Thread] = []
+        for reservation_service in self.reservation_services:
+            thread = threading.Thread(target=self.worker, args=(reservation_service,))
+            threads.append(thread)
+            thread.start()
+
+        for thread in threads:
+            thread.join()
 
 
 class MultiReservationScheduler:
     def __init__(
         self,
-        target_timestamp: float | int,
+        reserve_open_timestamp: float | int,
         creation_advances: Iterable[float, int],
         submission_advances: Iterable[float, int],
         user: User,
         equipment: Equipment,
         reservation: Reservation,
-        time_offset: float | int = 0,
+        server_time_offset: float | int = 0,
         hack: Hack | None = None,
     ) -> None:
         if len(creation_advances) != len(submission_advances):
@@ -79,10 +79,10 @@ class MultiReservationScheduler:
         }
         self.intervene_args_all = [
             {
-                "target_timestamp": target_timestamp,
+                "reserve_open_timestamp": reserve_open_timestamp,
                 "creation_advance": creation_advances[i],
                 "submission_advance": submission_advances[i],
-                "time_offset": time_offset,
+                "server_time_offset": server_time_offset,
             }
             for i in range(self.num_jobs)
         ]
@@ -98,9 +98,9 @@ class MultiReservationScheduler:
             reservation_services.append(reservation_service)
         return reservation_services
 
-    def execute(self) -> list[str]:
+    def execute(self) -> None:
         reservation_services = self.create_services()
         multi_reservation_service = MultiReservationService(
             reservation_services=reservation_services
         )
-        return multi_reservation_service.execute()
+        multi_reservation_service.execute()
