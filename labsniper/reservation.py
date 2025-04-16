@@ -150,12 +150,12 @@ class Intervene:
         if remaining > 0:
             dt = datetime.fromtimestamp(target_timestamp)
             formatted_dt = dt.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
-            msg = f"计划于此时刻后继续：{formatted_dt}（服务器时间）。"
+            msg = f"计划于此时刻后继续：{formatted_dt}（服务器时间）..."
             print(msg, end="")
         while True:
             remaining = target_timestamp - self.get_server_time()
             if remaining <= 0:
-                print("即将继续...")
+                print("即将继续。")
                 break
             time.sleep(poll_interval)
 
