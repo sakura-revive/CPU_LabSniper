@@ -10,7 +10,7 @@ class MultiReservationScheduler:
     def __init__(
         self,
         target_timestamp: float | int,
-        creation_advance: float | int,
+        creation_advances: Iterable[float, int],
         submission_advances: Iterable[float, int],
         user: User,
         equipment: Equipment,
@@ -18,6 +18,17 @@ class MultiReservationScheduler:
         time_offset: float | int = 0,
         hack: Hack | None = None,
     ) -> None:
+        if len(creation_advances) != len(submission_advances):
+            msg = "Invalid parameter. Detail:\n"
+            msg += "由创建和提交请求的提前量决定的任务数量不一致，请检查输入参数。"
+            raise ValueError(msg)
+
+        self.num_jobs = len(creation_advances)
+        if self.num_jobs == 0:
+            msg = "Invalid parameter. Detail:\n"
+            msg += "没有可执行的任务，请检查输入参数。"
+            raise ValueError(msg)
+
         self.service_args = {
             "user": user,
             "equipment": equipment,
@@ -27,17 +38,12 @@ class MultiReservationScheduler:
         self.intervene_args_all = [
             {
                 "target_timestamp": target_timestamp,
-                "creation_advance": creation_advance,
-                "submission_advance": submission_advance,
+                "creation_advance": creation_advances[i],
+                "submission_advance": submission_advances[i],
                 "time_offset": time_offset,
             }
-            for submission_advance in submission_advances
+            for i in range(self.num_jobs)
         ]
-        self.num_jobs = len(self.intervene_args_all)
-        if self.num_jobs == 0:
-            msg = "Invalid parameter. Detail:\n"
-            msg += "没有可执行的任务，请检查输入参数。"
-            raise ValueError(msg)
 
     def worker(self, service_args: dict, intervene_args: dict) -> str:
         try:
