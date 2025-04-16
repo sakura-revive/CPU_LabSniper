@@ -16,7 +16,7 @@ class ThreadMonitor:
     def __init__(
         self,
         main_title: str = "主程序",
-        thread_title: str = "线程汇总",
+        thread_title: str = "任务汇总",
         max_cols: int = 3,
     ) -> None:
         if not isinstance(max_cols, int):
