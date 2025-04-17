@@ -1,7 +1,16 @@
-from labsniper import core
 import os
 import sys
+
 import yaml
+
+from labsniper.credential import LocalCredential, SSOCredential, ManualCredential
+from labsniper.equipment import Equipment
+from labsniper.form import Form
+from labsniper.monitor import ThreadMonitor
+from labsniper.reservation import Hack, Reservation, ReservationService
+from labsniper.schedule import MultiReservationScheduler
+from labsniper.user import User
+from labsniper.utils import get_timestamp
 
 
 def main():
@@ -27,62 +36,82 @@ def main():
         user_info: dict = yaml.load(f, Loader=yaml.FullLoader)
         if not isinstance(user_info, dict):
             raise ValueError(f"config/users/{user}.yaml should be a dict.")
-    credential = {
-        "username": user_info["username"],
-        "password": user_info["password"],
-    }
-    if "login_method" in user_info:
-        credential["login_method"] = user_info["login_method"]
+
+    if "login_method" not in user_info:
+        raise ValueError('Please specify "login_method" in the user config file.')
+    login_method = user_info["login_method"]
+
+    if not isinstance(login_method, str):
+        raise ValueError("login_method should be a string.")
+    login_method = login_method.upper()
+    if login_method == "SSO":
+        credential = SSOCredential(user_info["username"], user_info["password"])
+    elif login_method == "LOCAL":
+        credential = LocalCredential(user_info["username"], user_info["password"])
+    elif login_method == "MANUAL":
+        credential = ManualCredential(user_info["cookies"])
+    else:
+        raise ValueError(f"Invalid login method: {login_method}.")
+
+    user = User(credential)
+    user.login()
 
     equipment_id = config["equipment_id"]
+    equipment = Equipment(equipment_id, user)
+
     reserve_info = {}
     if os.path.exists(f"config/forms/{equipment_id}.yaml"):
         with open(f"config/forms/{equipment_id}.yaml", "r", encoding="utf-8") as f:
             reserve_info = yaml.load(f, Loader=yaml.FullLoader)
             if reserve_info is None:
                 reserve_info = {}
+    form = Form(reserve_info)
 
-    dtstart = core.get_timestamp(config["start"])
-    dtend = core.get_timestamp(config["end"])
+    start = config["start"]
+    end = config["end"]
 
-    hackstart = core.get_timestamp(config.get("hackstart", None))
-    hackend = core.get_timestamp(config.get("hackend", None))
-    if (hackstart is None) ^ (hackend is None):
-        raise ValueError("Please specify both hackstart and hackend or neither.")
+    hackstart = config.get("hackstart", None)
+    hackend = config.get("hackend", None)
 
     component_id = config.get("component_id", None)
     hackuser_id = config.get("hackuser_id", None)
 
-    schedule = bool(config.get("schedule", False))
-    if schedule:
-        days_in_advance = int(reserve_info.get("days_in_advance", 0))
-        delay_seconds = float(config.get("delay_seconds", 0))
-        intervene = core.schedule(
-            dtend=dtend,
-            days_in_advance=days_in_advance,
-            delay_seconds=delay_seconds,
-            ticket_alive_seconds=core.TICKET_ALIVE_SECONDS,
-        )
-    else:
-        intervene = None
-
-    print("Start.\n")
-
-    res = core.single_reserve(
-        credential=credential,
-        dtstart=dtstart,
-        dtend=dtend,
-        reserve_info=reserve_info,
-        equipment_id=equipment_id,
+    reservation = Reservation(
+        start=start,
+        end=end,
+        form=form,
         component_id=component_id,
-        intervene=intervene,
-        hackstart=hackstart,
-        hackend=hackend,
-        hackuser_id=hackuser_id,
+    )
+    hack = Hack(
+        start=hackstart,
+        end=hackend,
+        current_user_id=hackuser_id,
     )
 
-    print(f"Success. Target component_id: \n{res['component_id']}")
+    reserve_open_time = config.get("reserve_open_time", None)
+    if reserve_open_time is None or reserve_open_time == "":
+        reservation_service = ReservationService(
+            user=user,
+            equipment=equipment,
+            reservation=reservation,
+            hack=hack,
+        )
+        reservation_service.go()
+    else:
+        server_time_offset = config.get("server_time_offset", 0)
+        scheduler = MultiReservationScheduler(
+            reserve_open_timestamp=get_timestamp(reserve_open_time),
+            creation_advances=[i + 8 for i in range(10)],
+            submission_advances=[i * 0.3 for i in range(10)],
+            user=user,
+            equipment=equipment,
+            reservation=reservation,
+            server_time_offset=server_time_offset,
+            hack=hack,
+        )
+        scheduler.execute()
 
 
 if __name__ == "__main__":
-    main()
+    with ThreadMonitor(main_title="主程序", thread_title="任务汇总", max_cols=4):
+        main()
