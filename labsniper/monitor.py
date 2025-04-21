@@ -9,7 +9,9 @@ from rich.style import Style
 from rich.table import Table
 from rich.text import Text
 
-from .utils import normalize_string
+from .utils import normalize_string, simple_exception_output
+
+sys.excepthook = simple_exception_output
 
 
 class ThreadMonitor:

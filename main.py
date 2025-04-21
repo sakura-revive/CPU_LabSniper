@@ -7,10 +7,10 @@ from labsniper.credential import LocalCredential, SSOCredential, ManualCredentia
 from labsniper.equipment import Equipment
 from labsniper.form import Form
 from labsniper.monitor import ThreadMonitor
-from labsniper.reservation import Hack, Reservation, ReservationService
+from labsniper.reservation import Hack, Reservation, ReservationService, Intervene
 from labsniper.schedule import MultiReservationScheduler
 from labsniper.user import User
-from labsniper.utils import get_timestamp
+from labsniper.utils import get_timestamp, simple_exception_output
 
 
 def main():
@@ -99,19 +99,39 @@ def main():
         reservation_service.go()
     else:
         server_time_offset = config.get("server_time_offset", 0)
-        scheduler = MultiReservationScheduler(
-            reserve_open_timestamp=get_timestamp(reserve_open_time),
-            creation_advances=[i + 8 for i in range(10)],
-            submission_advances=[i * 0.3 for i in range(10)],
-            user=user,
-            equipment=equipment,
-            reservation=reservation,
-            server_time_offset=server_time_offset,
-            hack=hack,
-        )
-        scheduler.execute()
+        brute_force = bool(config.get("brute_force", False))
+        if brute_force:
+            scheduler = MultiReservationScheduler(
+                reserve_open_timestamp=get_timestamp(reserve_open_time),
+                creation_advances=[i + 8 for i in range(10)],
+                submission_advances=[i * 0.3 for i in range(10)],
+                user=user,
+                equipment=equipment,
+                reservation=reservation,
+                server_time_offset=server_time_offset,
+                hack=hack,
+            )
+            scheduler.execute()
+        else:
+            reservation_service = ReservationService(
+                user=user,
+                equipment=equipment,
+                reservation=reservation,
+                hack=hack,
+            )
+            intervene = Intervene(
+                reserve_open_timestamp=get_timestamp(reserve_open_time),
+                creation_advance=8,
+                submission_advance=0.3,
+                server_time_offset=server_time_offset,
+            )
+            reservation_service.set_intervene(intervene)
+            reservation_service.go()
 
 
 if __name__ == "__main__":
     with ThreadMonitor(main_title="主程序", thread_title="任务汇总", max_cols=4):
-        main()
+        try:
+            main()
+        except Exception as e:
+            simple_exception_output(*sys.exc_info())

@@ -89,7 +89,4 @@ def get_timestamp(input_time: str) -> int:
 
 
 def simple_exception_output(exc_type, exc_value, exc_traceback):
-    print(f"{exc_type.__name__}: {exc_value}")
-
-
-sys.excepthook = simple_exception_output
+    print(f"{exc_type.__name__}: {exc_value}", file=sys.stderr)
