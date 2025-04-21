@@ -39,8 +39,8 @@ reserve_open_time: "2024-03-25 09:30:00"
 server_time_offset: 0.6
 
 # 是否使用多请求模式（true/false），默认为false
-# 仅在填写了reserve_open_time时生效
 # 多请求模式下，程序会在预约开放时间前的短时间内发送多次请求
+# 仅在填写了reserve_open_time时生效
 brute_force: true
 
 # 以井号（#）开头的行是注释，不会被程序读取

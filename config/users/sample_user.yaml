@@ -6,8 +6,6 @@
 # "LOCAL" - 本地登录/校外人员登录
 # "MANUAL" - 直接指定cookies登录（仅供专业人士使用）
 login_method: "SSO"
-# login_method: "LOCAL"
-# login_method: "MANUAL"
 
 # =========== 若登录方式为SSO（统一身份认证登录）或LOCAL（本地登录/校外人员登录），请填写本栏信息 =========== #
 # 请将双引号内的值替换为该用户的用户名
