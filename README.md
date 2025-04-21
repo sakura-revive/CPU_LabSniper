@@ -34,8 +34,8 @@ key2: -2
 ## 使用方法
 ### 获取本程序
 ```shell
-git clone https://github.com/lucienshawls/CPU_Equipment_Reserve.git
-cd CPU_Equipment_Reserve
+git clone https://github.com/sakura-revive/CPU_LabSniper.git
+cd CPU_LabSniper
 ```
 ### 安装环境
 ```shell
@@ -200,6 +200,11 @@ reserve_open_time: "2024-03-25 09:30:00"
 # 如果服务器时间比本地时间慢，则该数字应该是一个负数
 server_time_offset: 0.6
 
+# 是否使用多请求模式（true/false），默认为false
+# 仅在填写了reserve_open_time时生效
+# 多请求模式下，程序会在预约开放时间前的短时间内发送多次请求
+brute_force: true
+
 ```
 额外说明：
 - 必填参数：
@@ -230,7 +235,11 @@ server_time_offset: 0.6
     - 在尝试卡点预约时，本程序会先连接服务器创建请求但不立即提交，因此在可以开始预约的时间点时，只需提交已经创建的请求即可，而手动操作时无法在创建请求和提交请求这两个操作中间暂停，所以本程序理论上比手动操作的成功率要高。
   - 卡点预约 -> 时间校正
     - 尝试卡点发送预约请求时，由于服务器时间与运行本程序的设备时间可能有差异，用户可以设置`server_time_offset`来进行微调；
-    - 计算方式为服务器时间减去本地时间所得的秒数，可能为负数
+    - 计算方式为服务器时间减去本地时间所得的秒数，可能为负数;
+    - 仅在`reserve_open_time`非空且正确设置时有效。
+  - 卡点预约 -> 多请求模式
+    - 尝试卡点发送预约请求时，可以开启多请求模式，在该模式下，程序会在预约开放时间前的短时间内发送多次请求；
+    - 开启填`true`，不开启填`false`（默认不开启）；
     - 仅在`reserve_open_time`非空且正确设置时有效。
 
 ### 开始运行
